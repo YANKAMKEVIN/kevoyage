@@ -9,7 +9,7 @@ import { build } from './trip.js';
 import { panel } from './hud.js';
 import { loop, setPlay } from './playback.js';
 import { finishPhoto } from './photos.js';
-import { loadDemo } from './demo.js';
+import { loadDemo, demoArt } from './demo.js';
 import './exporter.js';
 
 document.body.appendChild(probe);
@@ -46,4 +46,4 @@ $('ver').textContent = 'v' + VERSION;
 })();
 
 /** Accès pour les tests de bout en bout. */
-Object.assign(window, { __kv: { etat, keep: () => keepNow(), restore } });
+Object.assign(window, { __kv: { etat, keep: () => keepNow(), restore, get demoArt() { return demoArt; } } });

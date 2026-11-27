@@ -114,12 +114,32 @@ const DEMO = [
   [9, '18:10', 34.297, 132.319, 'sea', 'Le grand torii au couchant', 'Miyajima'],
   [10, '09:00', 34.395, 132.453, 'city', 'Hiroshima, dernier matin', 'Hiroshima']
 ];
+/**
+ * Photo peinte avec Codex (art/demo_NN.webp), convertie en JPEG intégré pour que le carnet
+ * exporté reste un seul fichier. Si elle ne se charge pas, la photo dessinée prend le relais.
+ * @param {number} i @param {() => string} fallback @returns {Promise<string>}
+ */
+function painted(i, fallback) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      /** @type {CanvasRenderingContext2D} */ (c.getContext('2d')).drawImage(im, 0, 0);
+      demoArt++; res(c.toDataURL('image/jpeg', 0.84));
+    };
+    im.onerror = () => res(fallback());
+    im.src = `art/demo_${String(i + 1).padStart(2, '0')}.webp`;
+  });
+}
+/** Nombre de photos peintes chargées pour la démo (vérifié par les tests). */
+export let demoArt = 0;
 export async function loadDemo() {
+  demoArt = 0;
   const base = new Date(2026, 4, 2).getTime();
   etat.photos = await Promise.all(DEMO.map((d, i) => {
     const [hh, mm] = d[1].split(':').map(Number);
     const tm = base + d[0] * DAY + (hh * 60 + mm) * 6e4;
-    return finishPhoto({id: ++etat.pid, t: tm, lat: d[2], lon: d[3], est: false, cap: d[5], place: d[6], src: paint(d[4], hh, i + 3)});
+    return (async () => finishPhoto({id: ++etat.pid, t: tm, lat: d[2], lon: d[3], est: false, cap: d[5], place: d[6], src: await painted(i, () => paint(d[4], hh, i + 3))}))();
   }));
   etat.names = {}; etat.isDemo = true; $('title').value = 'Japon, mai 2026'; $('title').dataset.auto = ''; $('warn').hidden = true;
   build(); panel(); etat.t = 0;

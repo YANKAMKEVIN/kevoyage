@@ -11,7 +11,7 @@ Déposez les photos d'un voyage : Kevoyage lit la date et le lieu de chaque phot
 - **Résumé du voyage** : jours, kilomètres parcourus, étapes, photos et pays.
 - **Photos sans lieu** : elles sont rattachées à l'étape la plus proche dans le temps. Si aucune photo n'a de lieu, l'appli explique pourquoi (WhatsApp, Messenger et les captures d'écran effacent la position).
 - **Partage** : « Télécharger le carnet » crée un seul fichier HTML contenant la carte et les photos. Il s'ouvre dans n'importe quel navigateur, sans installation.
-- **Démo incluse** : un voyage de 11 jours au Japon (Paris, Tokyo, Hakone, Kyoto, Nara, Osaka, Miyajima, Hiroshima) avec des photos illustrées.
+- **Démo incluse** : un voyage de 11 jours au Japon (Paris, Tokyo, Hakone, Kyoto, Nara, Osaka, Miyajima, Hiroshima) avec 19 photos peintes avec Codex (dossier `art/`, prompts dans `tools/art/prompts.json`). Si elles manquent, des photos dessinées prennent le relais.
 - **Voyage gardé** : votre voyage (photos réduites, noms, titre) est retrouvé à la prochaine visite. Pour en commencer un autre : « Voir la démo » puis « Ajouter mes photos ».
 - **Mode clair et sombre**, ordinateur et téléphone.
 
