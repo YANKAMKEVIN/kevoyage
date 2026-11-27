@@ -109,7 +109,7 @@ function build() {
     if (legs[i - 1]) ds.push(Math.hypot(s.x - stops[i - 1].x, s.y - stops[i - 1].y));
     if (legs[i]) ds.push(Math.hypot(s.x - stops[i + 1].x, s.y - stops[i + 1].y));
     const d = ds.length ? Math.min(...ds) : 3;
-    s.view = [s.x, s.y, Math.max(2.4, Math.min(80, d * 2))];
+    s.view = [s.x, s.y, Math.max(7, Math.min(80, d * 2))]; // en dessous, le trait de côte de la carte du monde devient anguleux
     const k = Math.min(5, s.photos.length);
     s.show = Array.from({length: k}, (_, j) => s.photos[Math.round(j * (s.photos.length - 1) / Math.max(1, k - 1))]);
   });
@@ -315,7 +315,14 @@ function summary() {
   const days = stops.length ? Math.floor((midnight(stops[stops.length - 1].t1) - midnight(stops[0].t0)) / DAY) + 1 : 0;
   return {km: nf.format(Math.round(kmT)), isos, days};
 }
+// le titre est un champ d'une ligne : on réduit la police plutôt que de couper « juin 2025 »
+function fitTitle() {
+  const el = $('title'); el.style.fontSize = '';
+  let fs = parseFloat(getComputedStyle(el).fontSize);
+  while (el.scrollWidth > el.clientWidth + 1 && fs > 22) { fs -= 2; el.style.fontSize = fs + 'px'; }
+}
 function panel() {
+  fitTitle();
   const sm = summary();
   const d0 = stops[0], d1 = stops[stops.length - 1];
   $('dates').textContent = d0 ? 'Du ' + fmtDay.format(d0.t0) + ' au ' + fmtDay.format(d1.t1) + ' ' + new Date(d1.t1).getFullYear() : '';
@@ -372,7 +379,7 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
   if (e.code === 'Space' && e.target.tagName !== 'BUTTON') { e.preventDefault(); setPlay(!playing); }
 });
-$('title').addEventListener('input', () => { hash = null; });
+$('title').addEventListener('input', () => { hash = null; fitTitle(); });
 if (VIEWER) $('title').readOnly = true;
 
 /* ---------- import ---------- */
@@ -585,7 +592,9 @@ $('demo').addEventListener('click', async () => { await loadDemo(); setPlay(true
 
 /* ---------- export ---------- */
 let downloads = null;
-if (!VIEWER && window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; if (d) $('exp').hidden = false; }).catch(() => {});
+// hors de claude.ai (GitHub Pages, serveur local) on télécharge avec un simple lien : le bouton doit toujours être là
+if (!VIEWER) $('exp').hidden = false;
+if (!VIEWER && window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
 $('exp').addEventListener('click', async () => {
   const b = $('exp'), label = b.textContent;
   b.textContent = 'Préparation…'; b.disabled = true;
@@ -598,7 +607,9 @@ $('exp').addEventListener('click', async () => {
       '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Instrument+Serif&family=Inter:wght@400;500;600&display=swap"><style>' + CSS + '</style></head><body>' + SHELL +
       '<script>' + safe(d3s) + '</script><script>' + safe(topo) + '</script><script>window.KEV=' + JSON.stringify(data).replace(/</g, '\\u003c') + '</script><script>' + safe(appJs) + '</script></body></html>';
     const fn = ($('title').value || 'carnet').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'carnet';
-    await downloads.save({filename: 'kevoyage-' + fn + '.html', data: new Blob([html], {type: 'text/html'})});
+    const file = {filename: 'kevoyage-' + fn + '.html', data: new Blob([html], {type: 'text/html'})};
+    if (downloads) await downloads.save(file);
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(file.data); a.download = file.filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
     b.textContent = 'Carnet téléchargé';
   } catch (e) {
     b.textContent = e && e.code === 'declined' ? label : 'Téléchargement impossible ici';
