@@ -45,6 +45,7 @@ try {
   let s = await st(page);
   check(s.demo && s.photos === 19 && s.stops.length === 8, `démo du Japon (${s.stops.length} étapes, ${s.photos} photos)`);
   check(await page.locator('#stats').innerText().then(t => /11\s*jours/.test(t)), 'résumé : 11 jours');
+  check(await page.evaluate(() => __kv.demoArt) === 19, 'les 19 photos peintes de la démo sont chargées');
 
   // lecture, pause, vitesse, défilement
   await sleep(800);

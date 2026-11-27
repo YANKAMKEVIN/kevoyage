@@ -1,0 +1,120 @@
+{
+ "style": "Photographie de voyage réaliste, chaleureuse et soignée, comme les plus belles photos d'un carnet de voyage personnel : couleurs naturelles légèrement chaudes, lumière juste selon l'heure, profondeur de champ naturelle. Personnes éventuelles de dos ou lointaines, jamais de visage reconnaissable. Aucun texte lisible, aucun logo de marque, aucune signature, aucun filigrane, aucun cadre.",
+ "fond_detourage": "",
+ "images": [
+  {
+   "fichier": "demo_01",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Décollage de Roissy » (Paris, France, vue par le hublot), lumière douce du matin, vers 09 h 40. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_02",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Shibuya au crépuscule » (Tokyo, Japon), lumière dorée de fin d'après-midi, vers 18 h 30. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_03",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Sensō-ji avant la foule » (Tokyo, Japon), lumière douce du matin, vers 08 h 10. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_04",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Ruelles de Yūrakuchō » (Tokyo, Japon), plein jour, vers 13 h 00. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_05",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Shinjuku, néons » (Tokyo, Japon), le soir, de nuit, éclairages artificiels, vers 21 h 15. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_06",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Forêt du Meiji-jingū » (Tokyo, Japon), lumière douce du matin, vers 10 h 20. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_07",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Le Fuji depuis le lac Ashi » (Hakone, Japon), lumière douce du matin, vers 09 h 50. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_08",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Torii flottant de Hakone » (Hakone, Japon), lumière dorée de fin d'après-midi, vers 16 h 40. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_09",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Kiyomizu-dera » (Kyoto, Japon), lumière dorée de fin d'après-midi, vers 17 h 20. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_10",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Arashiyama à l'aube » (Kyoto, Japon), lumière douce du matin, vers 07 h 30. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_11",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Mille torii à Fushimi Inari » (Kyoto, Japon), plein jour, vers 11 h 00. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_12",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Lanternes de Gion » (Kyoto, Japon), le soir, de nuit, éclairages artificiels, vers 20 h 30. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_13",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Les daims de Nara » (Nara, Japon), lumière douce du matin, vers 10 h 00. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_14",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Tōdai-ji » (Nara, Japon), plein jour, vers 13 h 30. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_15",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Dōtonbori » (Osaka, Japon), le soir, de nuit, éclairages artificiels, vers 20 h 45. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_16",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Vue sur Osaka » (Osaka, Japon), plein jour, vers 11 h 00. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_17",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Itsukushima, marée haute » (Miyajima, Japon), plein jour, vers 12 h 30. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_18",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Le grand torii au couchant » (Miyajima, Japon), lumière dorée de fin d'après-midi, vers 18 h 10. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  },
+  {
+   "fichier": "demo_19",
+   "taille": "960x720",
+   "detourer": false,
+   "prompt": "Photo de voyage prise au téléphone : « Hiroshima, dernier matin » (Hiroshima, Japon), lumière douce du matin, vers 09 h 00. Cadrage naturel de voyageur, une seule scène nette et reconnaissable."
+  }
+ ]
+}
