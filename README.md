@@ -38,8 +38,9 @@ Puis ouvrir http://localhost:8000.
 | `src/geo.js` | Projection, distances, ville la plus proche |
 | `src/store.js`, `src/keep.js` | Sauvegarde versionnée du voyage (IndexedDB), même format que les carnets |
 | `src/map.js`, `src/hud.js`, `src/playback.js` | Carte sur canvas, polaroïds et panneau, lecture |
-| `src/photos.js`, `src/demo.js` | Import des photos (EXIF), démo du Japon |
-| `src/exporter.js`, `src/bundle.js` | Carnet téléchargé : un seul fichier HTML, modules rassemblés en un script |
+| `src/photos.js`, `src/demo.js` | Import des photos, démo du Japon |
+| `src/meta.js`, `src/sizes.js` | Date et lieu lus dans l'EXIF (dates d'appareil non réglé refusées), tailles des photos réduites |
+| `src/exporter.js`, `src/carnet.js`, `src/bundle.js` | Carnet téléchargé : assemblage du fichier HTML unique (testé sans navigateur), modules rassemblés en un script |
 | `world.json` | Contours des pays (Natural Earth 1:50m, via world-atlas) |
 | `cities.json` | 7 342 villes avec noms en français (Natural Earth populated places) |
 | `d3.min.js`, `topojson-client.min.js`, `exifr.min.js` | Bibliothèques : cartographie, contours, lecture des données EXIF |
@@ -51,18 +52,25 @@ Puis ouvrir http://localhost:8000.
 
 ## Sauvegarde
 
-Le voyage en cours est gardé dans IndexedDB (base `kevoyage`, clé `courant`), avec un numéro de version. Un voyage abîmé ou venant d'une version plus récente est mis de côté (`courant.abimee`) et l'appli repart de la démo. Les carnets téléchargés utilisent le même format ; ceux exportés avant la version 1.1.0 (sans numéro de version) s'ouvrent toujours.
+Le voyage en cours est gardé dans IndexedDB (base `kevoyage`, clé `courant`), avec deux numéros : `SAVE_VERSION` pour le format du voyage (migré par `migrate()`) et `DB_VERSION` pour le schéma de la base. Si le voyage ne peut pas être gardé (stockage plein, navigation privée, IndexedDB qui ne répond pas), l'appli le dit et conseille de télécharger le carnet ; quand le stockage est plein, le voyage abîmé mis de côté est libéré d'abord. Un voyage abîmé ou venant d'une version plus récente est mis de côté (`courant.abimee`) et l'appli repart de la démo. Les carnets téléchargés utilisent le même format ; ceux exportés avant la version 1.1.0 (sans numéro de version) s'ouvrent toujours.
 
 ## Tests
 
 ```bash
-npm install
+npm ci
 npx playwright install chromium
 npm run types    # typage
-npm run unit     # étapes, trajets, lecture, résumé, sauvegarde, carnet, photos EXIF de test
+npm run unit     # EXIF, étapes, photos sans lieu, fuseaux et heure d'été, trajets, résumé, IndexedDB, carnet, fichiers de Pages
 npm run smoke    # fumée sur ordinateur, iPhone SE et Pixel 7
 npm run partie   # parcours complet : démo, import de vraies photos, rechargement, carnet hors ligne, iPhone SE
+npm run robustesse # vitesse, onglet caché, dates EXIF bizarres, navigation privée, stockage plein, 300 photos, carnet sur Pixel 7
 npm test         # tout
 ```
 
-La CI GitHub (`.github/workflows/tests.yml`) lance tout sur chaque PR ; captures dans `test-results/`.
+La CI GitHub (`.github/workflows/tests.yml`) lance tout sur chaque PR ; le contrôle « CI Kevoyage » résume les deux jobs (à rendre obligatoire dans la protection de la branche `main`). Captures dans `test-results/`.
+
+## Performance sur téléphone
+
+- Photos réduites à 1000 px au plus (≈ 25 Ko chacune), miniatures de carte de 96 px ; l'image pleine taille décodée est libérée tout de suite.
+- La carte n'est redessinée que pendant la lecture ou après une action ; la boucle s'arrête quand l'onglet est caché ; densité de pixels plafonnée à 2.
+- Vérifié par `npm run robustesse` avec 300 photos de 1600 × 1200.

@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
-    "test": "npm run types && npm run unit && npm run smoke && npm run partie",
+    "test": "npm run types && npm run unit && npm run smoke && npm run partie && npm run robustesse",
     "types": "tsc -p .",
     "unit": "node --test \"tests/unit/*.test.mjs\"",
     "smoke": "node tests/smoke.mjs",
-    "partie": "node tests/partie.mjs"
+    "partie": "node tests/partie.mjs",
+    "robustesse": "node tests/robustesse.mjs"
   },
   "devDependencies": {
     "fake-indexeddb": "6.0.0",

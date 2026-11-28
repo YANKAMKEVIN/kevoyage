@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   unit:
-    name: Types et tests unitaires (étapes, lecture, sauvegarde, carnet)
+    name: Types et tests unitaires (EXIF, étapes, fuseaux, sauvegarde IndexedDB, carnet)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -23,12 +23,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npm run types
       - run: npm run unit
 
   navigateur:
-    name: Fumée (ordinateur, iPhone SE, Pixel 7) et parcours complet
+    name: Fumée, parcours complet, robustesse et 300 photos
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -36,10 +37,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - run: npm run smoke
       - run: npm run partie
+      - run: npm run robustesse
       - name: Captures
         if: always()
         uses: actions/upload-artifact@v4
@@ -47,3 +50,12 @@ jobs:
           name: captures
           path: test-results/
           retention-days: 7
+
+  # Un seul contrôle à rendre obligatoire dans la protection de branche (Settings > Branches) : il échoue si un job échoue.
+  verdict:
+    name: CI Kevoyage
+    if: always()
+    needs: [unit, navigateur]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test "${{ needs.unit.result }}" = success && test "${{ needs.navigateur.result }}" = success
