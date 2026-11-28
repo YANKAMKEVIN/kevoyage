@@ -12,6 +12,7 @@
     "partie": "node tests/partie.mjs"
   },
   "devDependencies": {
+    "fake-indexeddb": "6.0.0",
     "playwright": "1.63.0",
     "typescript": "5.8.3"
   }

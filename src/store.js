@@ -92,31 +92,72 @@ export async function loadTrip(db) {
   return null;
 }
 
-/** @param {Backend|null} db @param {SavedTrip} d @returns {Promise<boolean>} */
-export async function saveTrip(db, d) {
-  if (!db || !isValidTrip(d)) return false;
-  try { await db.set(KEY, d); return true; } catch { return false; }
+/** Résultat d'une sauvegarde : ok, voyage invalide (jamais écrit), stockage indisponible (navigation privée…),
+ * plein (quota dépassé), ou autre erreur.
+ * @typedef {'ok'|'invalide'|'indisponible'|'plein'|'erreur'} SaveStatus */
+
+/** Erreur de quota, quel que soit le navigateur. @param {any} e */
+export function isQuotaError(e) {
+  const n = e && (e.name || (e.inner && e.inner.name));
+  return n === 'QuotaExceededError' || n === 'NS_ERROR_DOM_QUOTA_REACHED' || (e && e.code === 22);
 }
+
+/** Sauvegarde et dit pourquoi elle échoue. Si le stockage est plein, on libère le voyage abîmé mis de côté et on réessaie une fois.
+ * @param {Backend|null} db @param {SavedTrip} d @returns {Promise<SaveStatus>} */
+export async function saveTripStatus(db, d) {
+  if (!isValidTrip(d)) return 'invalide';
+  if (!db) return 'indisponible';
+  try { await db.set(KEY, d); return 'ok'; } catch (e) {
+    if (!isQuotaError(e)) return 'erreur';
+    try { await db.del(KEY + '.abimee'); await db.set(KEY, d); return 'ok'; } catch { return 'plein'; }
+  }
+}
+
+/** @param {Backend|null} db @param {SavedTrip} d @returns {Promise<boolean>} */
+export async function saveTrip(db, d) { return (await saveTripStatus(db, d)) === 'ok'; }
 
 /** @param {Backend|null} db */
 export async function clearTrip(db) { if (!db) return; try { await db.del(KEY); } catch { /* bloqué */ } }
 
-/** IndexedDB du navigateur, ou null s'il est indisponible (navigation privée stricte, fichier local…). */
-export function idbBackend(factory = globalThis.indexedDB) {
+/** Version du schéma IndexedDB (magasins d'objets), distincte de SAVE_VERSION (format du voyage). */
+export const DB_VERSION = 1;
+/** Au-delà, l'ouverture est abandonnée : certains Safari laissent indexedDB.open sans réponse. */
+export const OPEN_TIMEOUT_MS = 4000;
+
+/** La fabrique IndexedDB du navigateur ; y accéder peut lever une erreur (iframe isolée, cookies bloqués). */
+export function defaultFactory() { try { return globalThis.indexedDB || null; } catch { return null; } }
+
+/** IndexedDB du navigateur, ou null s'il est indisponible (navigation privée stricte, fichier local…).
+ * Une ouverture ratée n'est pas gardée en mémoire : l'appel suivant réessaie.
+ * @param {IDBFactory|null} [factory] @param {number} [timeoutMs] @returns {Backend|null} */
+export function idbBackend(factory = defaultFactory(), timeoutMs = OPEN_TIMEOUT_MS) {
   if (!factory) return null;
+  const f = factory;
   /** @type {Promise<IDBDatabase>|null} */
   let opening = null;
   const open = () => opening ??= new Promise((res, rej) => {
-    const r = factory.open(DB_NAME, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore(STORE);
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
-    r.onblocked = () => rej(new Error('bloqué'));
-  });
+    const timer = setTimeout(() => rej(new Error('ouverture trop longue')), timeoutMs);
+    const done = (/** @type {() => void} */ fn) => { clearTimeout(timer); fn(); };
+    /** @type {IDBOpenDBRequest} */
+    let r;
+    try { r = f.open(DB_NAME, DB_VERSION); } catch (e) { done(() => rej(e)); return; }
+    r.onupgradeneeded = () => {
+      // une étape par version de schéma ; v1 : un magasin clé -> valeur
+      if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
+    };
+    r.onsuccess = () => done(() => {
+      const db = r.result;
+      // un autre onglet passe à un schéma plus récent : on se retire proprement
+      db.onversionchange = () => { db.close(); opening = null; };
+      res(db);
+    });
+    r.onerror = () => done(() => rej(r.error));
+    r.onblocked = () => done(() => rej(new Error('bloqué')));
+  }).catch(e => { opening = null; throw e; });
   /** @param {'readonly'|'readwrite'} mode @param {(s:IDBObjectStore)=>IDBRequest} fn */
   const run = (mode, fn) => open().then(db => new Promise((res, rej) => {
     const tx = db.transaction(STORE, mode), q = fn(tx.objectStore(STORE));
-    tx.oncomplete = () => res(q.result); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    tx.oncomplete = () => res(q.result); tx.onerror = () => rej(tx.error || q.error); tx.onabort = () => rej(tx.error || q.error || new Error('annulé'));
   }));
   /** @type {Backend} */
   const b = {
@@ -125,4 +166,13 @@ export function idbBackend(factory = globalThis.indexedDB) {
     del: k => run('readwrite', s => s.delete(k)).then(() => {}),
   };
   return b;
+}
+
+/** Message pour l'utilisateur quand le voyage n'a pas pu être gardé ('' si rien à dire).
+ * @param {SaveStatus} status @returns {string} */
+export function saveMessage(status) {
+  if (status === 'plein') return 'Le stockage de ce navigateur est plein : votre voyage n\'a pas pu être gardé pour la prochaine visite. Téléchargez le carnet pour le conserver.';
+  if (status === 'indisponible') return 'Ce navigateur ne permet pas de garder le voyage (navigation privée ?) : téléchargez le carnet pour le conserver.';
+  if (status === 'erreur') return 'Votre voyage n\'a pas pu être gardé pour la prochaine visite. Téléchargez le carnet pour le conserver.';
+  return '';
 }
