@@ -1,7 +1,7 @@
 // @ts-check
 /** Voyage de démonstration au Japon, photos peintes sur canvas. */
 import { $ } from './dom.js';
-import { DAY } from './fmt.js';
+import { DAY } from './temps.js';
 import { etat } from './state.js';
 import { build } from './trip.js';
 import { panel } from './hud.js';

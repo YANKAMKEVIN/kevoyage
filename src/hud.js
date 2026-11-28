@@ -5,7 +5,8 @@ import { fmtDay, fmtHour, fmtShort, nf } from './fmt.js';
 import { etat } from './state.js';
 import { draw } from './map.js';
 import { keepSoon } from './keep.js';
-import { dayNo, midnight, summary } from './trip.js';
+import { dayNo, summary } from './trip.js';
+import { wall, wallDay } from './temps.js';
 
 /* ---------- overlay ---------- */
 const card = $('card'), legEl = $('leg');
@@ -20,10 +21,10 @@ export function hud(st) {
     const p = o.s.show[st.ph];
     $('cimg').src = p.src; $('cimg').alt = o.s.name;
     $('ccap').textContent = p.cap || o.s.name;
-    $('cmeta').textContent = (p.cap ? o.s.name + ' · ' : '') + 'Jour ' + dayNo(p.t) + ' · ' + fmtDay.format(p.t) + ' · ' + fmtHour.format(p.t) + (p.est ? ' · lieu estimé' : '');
+    $('cmeta').textContent = (p.cap ? o.s.name + ' · ' : '') + 'Jour ' + dayNo(p) + ' · ' + fmtDay.format(wall(p)) + ' · ' + fmtHour.format(wall(p)) + (p.est ? ' · lieu estimé' : '');
     card.classList.remove('hide', 'pop'); void card.offsetWidth; card.classList.add('pop');
     legEl.classList.add('hide');
-    $('when').textContent = o.s.name + ' · jour ' + dayNo(p.t) + (o.s.photos.length > o.s.show.length ? ' · ' + o.s.photos.length + ' photos' : '');
+    $('when').textContent = o.s.name + ' · jour ' + dayNo(p) + (o.s.photos.length > o.s.show.length ? ' · ' + o.s.photos.length + ' photos' : '');
   } else {
     card.classList.add('hide');
     if (o.kind === 'leg') {
@@ -35,11 +36,11 @@ export function hud(st) {
     } else if (o.kind === 'intro') {
       legEl.textContent = ''; const em = document.createElement('em'); em.textContent = $('title').value;
       legEl.append(em); legEl.classList.remove('hide');
-      $('when').textContent = 'Départ · ' + fmtDay.format(etat.stops[0].t0);
+      $('when').textContent = 'Départ · ' + fmtDay.format(etat.stops[0].w0);
     } else {
       legEl.textContent = ''; const em = document.createElement('em'); em.textContent = 'Fin du voyage';
       legEl.append(em, ' · ' + summary().km + ' km, ' + etat.stops.length + ' étapes'); legEl.classList.remove('hide');
-      $('when').textContent = 'Retour · ' + fmtDay.format(etat.stops[etat.stops.length - 1].t1);
+      $('when').textContent = 'Retour · ' + fmtDay.format(etat.stops[etat.stops.length - 1].w1);
     }
   }
   document.querySelectorAll('.stop').forEach((li, i) => { li.classList.toggle('on', i === st.cur && o.kind === 'stay'); li.classList.toggle('later', i > st.cur || (o.kind === 'intro')); });
@@ -54,7 +55,7 @@ export function panel() {
   fitTitle();
   const sm = summary();
   const d0 = etat.stops[0], d1 = etat.stops[etat.stops.length - 1];
-  $('dates').textContent = d0 ? 'Du ' + fmtDay.format(d0.t0) + ' au ' + fmtDay.format(d1.t1) + ' ' + new Date(d1.t1).getFullYear() : '';
+  $('dates').textContent = d0 ? 'Du ' + fmtDay.format(d0.w0) + ' au ' + fmtDay.format(d1.w1) + ' ' + new Date(d1.w1).getUTCFullYear() : '';
   const stats = [[sm.days, sm.days > 1 ? 'jours' : 'jour'], [sm.km, 'km parcourus'], [etat.stops.length, 'étapes'], [etat.photos.length, 'photos'], [sm.isos.length || 1, sm.isos.length > 1 ? 'pays' : 'pays']];
   $('stats').innerHTML = stats.map(s => '<div><b></b><span></span></div>').join('');
   [...$('stats').children].forEach((el, i) => { el.firstChild.textContent = stats[i][0]; el.lastChild.textContent = stats[i][1]; });
@@ -68,8 +69,8 @@ export function panel() {
     inp.addEventListener('input', () => { s.name = inp.value || s.auto; etat.names[s.key] = inp.value; etat.hash = null; draw(); keepSoon(); });
     inp.addEventListener('click', e => e.stopPropagation());
     const sm2 = document.createElement('small');
-    const same = midnight(s.t0) === midnight(s.t1);
-    sm2.textContent = (same ? fmtShort.format(s.t0) : fmtShort.format(s.t0) + ' – ' + fmtShort.format(s.t1)) + ' · ' + s.photos.length + ' photo' + (s.photos.length > 1 ? 's' : '');
+    const same = wallDay(s.w0) === wallDay(s.w1);
+    sm2.textContent = (same ? fmtShort.format(s.w0) : fmtShort.format(s.w0) + ' – ' + fmtShort.format(s.w1)) + ' · ' + s.photos.length + ' photo' + (s.photos.length > 1 ? 's' : '');
     box.append(inp, sm2); li.append(n, im, box);
     const go = () => { const o = etat.seq.find(q => q.kind === 'stay' && q.s === s); if (!o) return; etat.t = o.t0 + 0.01; etat.hash = null; draw(); };
     li.addEventListener('click', go);

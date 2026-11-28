@@ -1,8 +1,8 @@
 // @ts-check
-/** Photo du voyage (réduite à 1000 px, en data URL). thumb : miniature ronde.
- * @typedef {{id:number,t:number,lat:number,lon:number,est:boolean,cap?:string,place?:string,src:string,noDate?:boolean,thumb?:HTMLCanvasElement}} Photo
- * Étape : photos prises au même endroit.
- * @typedef {{i:number,key:number,lat:number,lon:number,n:number,t0:number,t1:number,photos:Photo[],auto:string,iso:string,name:string,x:number,y:number,view:number[],show:Photo[]}} Stop
+/** Photo du voyage (réduite à 1000 px, en data URL). t : instant de prise de vue, tz : fuseau en minutes (voir temps.js). thumb : miniature ronde.
+ * @typedef {{id:number,t:number,tz?:number,lat:number,lon:number,est:boolean,cap?:string,place?:string,src:string,noDate?:boolean,thumb?:HTMLCanvasElement}} Photo
+ * Étape : photos prises au même endroit ; w0, w1 : heures murales de la première et de la dernière.
+ * @typedef {{i:number,key:number,lat:number,lon:number,n:number,t0:number,t1:number,w0:number,w1:number,photos:Photo[],auto:string,iso:string,name:string,x:number,y:number,view:number[],show:Photo[]}} Stop
  * Trajet entre deux étapes (en vol au-delà de 250 km).
  * @typedef {{a:Stop,b:Stop,km:number,fly:boolean,pts:number[][],cum:number[],len:number}} Leg
  * Morceau de la séquence animée.
@@ -22,6 +22,7 @@ export const etat = {
   /** @type {Leg[]} */ legs: [],
   /** @type {Step[]} */ seq: [],
   T: 1,
+  /** premier et dernier jour vécus sur place (numéros de jour, voir temps.js dayIndex) */ day0: 0, day1: 0,
   /** @type {Record<string,string>} */ names: {},
   isDemo: true,
   pid: 0,
