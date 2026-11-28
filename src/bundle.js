@@ -4,7 +4,7 @@
  * les import sont retirés et les export deviennent de simples déclarations : tous les noms de premier niveau
  * des modules sont uniques (vérifié par les tests). */
 
-const IMPORT = /^import\s+(?:[\s\S]*?\s+from\s+)?'(\.\/[^']+)';[^\n]*\n?/gm;
+const IMPORT = /^import\s+(?:[^;']*?\s+from\s+)?'(\.\/[^']+)';[^\n]*\n?/gm;
 
 /** Modules importés par un source, dans l'ordre. @param {string} src @returns {string[]} */
 export function importsOf(src) { return [...src.matchAll(IMPORT)].map(m => m[1]); }
