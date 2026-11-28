@@ -99,12 +99,14 @@ export function legPoint(L, f) {
   const a = L.pts[j - 1], b = L.pts[j], seg = (L.cum[j] - L.cum[j - 1]) || 1, g = Math.max(0, Math.min(1, (target - L.cum[j - 1]) / seg));
   return [a[0] + (b[0] - a[0]) * g, a[1] + (b[1] - a[1]) * g, j];
 }
-export function dayNo(tm) { return Math.floor((midnight(tm) - midnight(etat.stops[0].t0)) / DAY) + 1; }
+/** Jours calendaires entre deux minuits locaux : arrondi, car un jour de changement d'heure dure 23 ou 25 h. */
+export function daysBetween(t0, t1) { return Math.round((midnight(t1) - midnight(t0)) / DAY); }
+export function dayNo(tm) { return daysBetween(etat.stops[0].t0, tm) + 1; }
 export function midnight(tm) { const d = new Date(tm); d.setHours(0, 0, 0, 0); return d.getTime(); }
 export function summary() {
   const kmT = etat.legs.reduce((a, L) => a + L.km, 0);
   const isos = [...new Set(etat.stops.map(s => s.iso).filter(Boolean))];
-  const days = etat.stops.length ? Math.floor((midnight(etat.stops[etat.stops.length - 1].t1) - midnight(etat.stops[0].t0)) / DAY) + 1 : 0;
+  const days = etat.stops.length ? daysBetween(etat.stops[0].t0, etat.stops[etat.stops.length - 1].t1) + 1 : 0;
   return {km: nf.format(Math.round(kmT)), isos, days};
 }
 export function autoTitle() {
