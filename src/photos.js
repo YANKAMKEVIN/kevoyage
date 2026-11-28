@@ -7,23 +7,10 @@ import { panel } from './hud.js';
 import { setPlay } from './playback.js';
 import { keepNow } from './keep.js';
 import { EXIF_OPTS, photoFields } from './meta.js';
-import { MAX_SIDE, THUMB, fitSize } from './sizes.js';
+import { MAX_SIDE, fitSize } from './sizes.js';
+import { showThumbs } from './thumbs.js';
 
 /* ---------- import ---------- */
-function thumbOf(img, w, h) {
-  const c = document.createElement('canvas'); c.width = c.height = THUMB;
-  const s = Math.min(w, h), g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
-  g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, THUMB, THUMB);
-  return c;
-}
-export function finishPhoto(p) {
-  return new Promise(res => {
-    const im = new Image();
-    im.onload = () => { p.thumb = thumbOf(im, im.naturalWidth, im.naturalHeight); res(p); };
-    im.onerror = () => res(p);
-    im.src = p.src;
-  });
-}
 function scaleToJpeg(bmp, w, h) {
   const [cw, ch] = fitSize(w, h, MAX_SIDE);
   const c = document.createElement('canvas'); c.width = cw; c.height = ch;
@@ -51,7 +38,7 @@ async function bitmapJpeg(blob) {
   const b = await createImageBitmap(blob);
   try { return scaleToJpeg(b, b.width, b.height); } finally { b.close && b.close(); }
 }
-async function ingest(list) {
+export async function ingest(list) {
   const files = [...list].filter(f => /^image\//.test(f.type) || /\.(heic|heif|jpe?g|png|webp)$/i.test(f.name));
   if (!files.length) return;
   const busy = $('busy'); busy.classList.add('on'); setPlay(false);
@@ -59,12 +46,12 @@ async function ingest(list) {
   for (let i = 0; i < files.length; i++) {
     $('busyn').textContent = (i + 1) + ' sur ' + files.length;
     $('busyb').style.width = ((i + 1) / files.length * 100) + '%';
-    try { got.push(await finishPhoto(await readFile(files[i]))); } catch (e) {}
+    try { got.push(await readFile(files[i])); } catch (e) {}
   }
-  busy.classList.remove('on');
   const located = got.filter(p => !p.est);
   const warn = $('warn');
   if (!located.length) {
+    busy.classList.remove('on');
     warn.hidden = false;
     warn.textContent = 'Aucune de ces ' + got.length + ' photos ne contient de lieu. Les photos envoyées par WhatsApp, Messenger ou captures d\'écran perdent leur position : prenez les originaux depuis votre téléphone ou votre ordinateur (sur iPhone, AirDrop ou « Options › Toutes les données de la photo »).';
     return;
@@ -73,6 +60,8 @@ async function ingest(list) {
   etat.photos.push(...got);
   estimate();
   build();
+  await showThumbs();
+  busy.classList.remove('on');
   if (!$('title').value || $('title').dataset.auto === '1') { $('title').value = autoTitle(); $('title').dataset.auto = '1'; }
   const nE = etat.photos.filter(p => p.est).length, nD = etat.photos.filter(p => p.noDate).length;
   const msgs = [];

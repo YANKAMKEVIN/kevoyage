@@ -5,6 +5,7 @@ import { proj } from './geo.js';
 import { etat } from './state.js';
 import { legPoint, overview, stateAt } from './trip.js';
 import { hud } from './hud.js';
+import { wantThumb, whenLate } from './thumbs.js';
 
 export async function loadGeo() {
   if (KEV) { etat.WORLD_TXT = KEV.world; etat.CITIES = KEV.cities; }
@@ -50,7 +51,7 @@ function roundThumb(p, x, y, r, ring) {
   ctx.beginPath(); ctx.arc(x, y + 2, r + 3, 0, 7); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
   ctx.beginPath(); ctx.arc(x, y, r + 3, 0, 7); ctx.fillStyle = ring; ctx.fill();
   ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip();
-  if (p.thumb) ctx.drawImage(p.thumb, x - r, y - r, r * 2, r * 2); else { ctx.fillStyle = etat.C.coast; ctx.fill(); }
+  if (p.thumb) ctx.drawImage(p.thumb, x - r, y - r, r * 2, r * 2); else { ctx.fillStyle = etat.C.coast; ctx.fill(); wantThumb(p); }
   ctx.restore();
 }
 /** Fond de carte (mer, terres, frontières, noms de villes) gardé tant que la vue ne bouge pas :
@@ -97,6 +98,8 @@ function drawBase(g, k, ox, oy) {
   }
   etat.baseDraws++;
 }
+// miniature arrivée après coup (carte à l'arrêt) : on redessine
+whenLate(() => draw());
 export function draw() {
   if (!etat.landP || !etat.gratP || !etat.bordP) return;
   const st = etat.stops.length ? stateAt(etat.t) : null;

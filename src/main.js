@@ -8,7 +8,8 @@ import { etat } from './state.js';
 import { build } from './trip.js';
 import { panel } from './hud.js';
 import { setPlay, startLoop } from './playback.js';
-import { finishPhoto } from './photos.js';
+import { ingest } from './photos.js';
+import { showThumbs } from './thumbs.js';
 import { loadDemo, demoArt } from './demo.js';
 import './exporter.js';
 
@@ -22,8 +23,8 @@ ro.observe(cv);
 /** Ouvre un voyage sauvegardé ou un carnet. @param {import('./store.js').SavedTrip} trip */
 async function openTrip(trip) {
   etat.names = { ...trip.names }; etat.isDemo = false;
-  etat.photos = await Promise.all(trip.photos.map(p => { etat.pid = Math.max(etat.pid, p.id); return finishPhoto({ ...p }); }));
-  $('title').value = trip.title; $('title').dataset.auto = ''; build(); panel();
+  etat.photos = trip.photos.map(p => { etat.pid = Math.max(etat.pid, p.id); return { ...p }; });
+  $('title').value = trip.title; $('title').dataset.auto = ''; build(); await showThumbs(); panel();
 }
 
 $('ver').textContent = 'v' + VERSION;
@@ -46,4 +47,4 @@ $('ver').textContent = 'v' + VERSION;
 })();
 
 /** Accès pour les tests de bout en bout. */
-Object.assign(window, { __kv: { etat, keep: () => keepNow(), keepStatus: () => lastWrite, restore, get demoArt() { return demoArt; } } });
+Object.assign(window, { __kv: { etat, ingest, keep: () => keepNow(), keepStatus: () => lastWrite, restore, get demoArt() { return demoArt; } } });
