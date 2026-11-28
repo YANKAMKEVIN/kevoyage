@@ -6,12 +6,14 @@ import { autoTitle, build, estimate } from './trip.js';
 import { panel } from './hud.js';
 import { setPlay } from './playback.js';
 import { keepNow } from './keep.js';
+import { EXIF_OPTS, photoFields } from './meta.js';
+import { MAX_SIDE, THUMB, fitSize } from './sizes.js';
 
 /* ---------- import ---------- */
 function thumbOf(img, w, h) {
-  const c = document.createElement('canvas'); c.width = c.height = 96;
+  const c = document.createElement('canvas'); c.width = c.height = THUMB;
   const s = Math.min(w, h), g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
-  g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, 96, 96);
+  g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, THUMB, THUMB);
   return c;
 }
 export function finishPhoto(p) {
@@ -23,8 +25,8 @@ export function finishPhoto(p) {
   });
 }
 function scaleToJpeg(bmp, w, h) {
-  const m = 1000 / Math.max(w, h), s = Math.min(1, m);
-  const c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+  const [cw, ch] = fitSize(w, h, MAX_SIDE);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
   /** @type {CanvasRenderingContext2D} */ (c.getContext('2d')).drawImage(bmp, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.82);
 }
@@ -36,16 +38,18 @@ function placeholder(name) {
 }
 async function readFile(f) {
   let meta = null;
-  try { meta = await exifr.parse(f, {tiff: true, exif: true, gps: true, xmp: false, icc: false, iptc: false}); } catch (e) {}
+  try { meta = await exifr.parse(f, EXIF_OPTS); } catch (e) {}
   let src = null;
-  try { const b = await createImageBitmap(f); src = scaleToJpeg(b, b.width, b.height); b.close && b.close(); } catch (e) {
-    try { const th = await exifr.thumbnail(f); if (th) { const b = await createImageBitmap(new Blob([th], {type: 'image/jpeg'})); src = scaleToJpeg(b, b.width, b.height); } } catch (e2) {}
+  try { src = await bitmapJpeg(f); } catch (e) {
+    try { const th = await exifr.thumbnail(f); if (th) src = await bitmapJpeg(new Blob([th], {type: 'image/jpeg'})); } catch (e2) {}
   }
   if (!src) src = placeholder(f.name);
-  const date = meta && (meta.DateTimeOriginal || meta.CreateDate || meta.ModifyDate);
-  const lat = meta && typeof meta.latitude === 'number' && isFinite(meta.latitude) ? meta.latitude : null;
-  const lon = meta && typeof meta.longitude === 'number' && isFinite(meta.longitude) ? meta.longitude : null;
-  return {id: ++etat.pid, t: date instanceof Date && !isNaN(date.getTime()) ? date.getTime() : f.lastModified, noDate: !(date instanceof Date), lat, lon, est: lat === null || (lat === 0 && lon === 0), src};
+  return {id: ++etat.pid, ...photoFields(meta, f.lastModified), src};
+}
+/** Décode, réduit à MAX_SIDE et libère tout de suite l'image pleine taille (une photo de 12 Mpx pèse ~48 Mo décodée). @param {Blob} blob */
+async function bitmapJpeg(blob) {
+  const b = await createImageBitmap(blob);
+  try { return scaleToJpeg(b, b.width, b.height); } finally { b.close && b.close(); }
 }
 async function ingest(list) {
   const files = [...list].filter(f => /^image\//.test(f.type) || /\.(heic|heif|jpe?g|png|webp)$/i.test(f.name));
