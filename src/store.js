@@ -1,6 +1,6 @@
 // @ts-check
 /** Sauvegarde versionnée du voyage en cours (titre, noms d'étapes, photos réduites),
- * dans IndexedDB : vos photos restent sur l'appareil et le voyage est retrouvé à la prochaine visite.
+ * dans IndexedDB (rangement par paquets : voir idb.js) : vos photos restent sur l'appareil et le voyage est retrouvé à la prochaine visite.
  * Le même format sert aux carnets téléchargés.
  *
  * Règle : toute modification du format incrémente SAVE_VERSION et ajoute une étape
@@ -8,16 +8,17 @@
  * il est mis de côté sous KEY + '.abimee' et l'appli repart de la démo.
  * Les carnets exportés avant la version 1.1.0 (sans numéro de version) sont repris. */
 
-export const DB_NAME = 'kevoyage';
-export const STORE = 'voyage';
-export const KEY = 'courant';
-export const SAVE_VERSION = 1;
-/** Au-delà, la sauvegarde serait trop lourde pour certains navigateurs. */
-export const MAX_PHOTOS = 2000;
+import { KEY } from './idb.js';
+import { validTz } from './temps.js';
 
-/** @typedef {{id:number,t:number,lat:number,lon:number,est:boolean,cap:string,place:string,src:string,noDate?:boolean}} SavedPhoto
+/** Format du voyage. v2 (1.3.0) : fuseau de la prise de vue (tz, en minutes) sur les photos qui le donnent. */
+export const SAVE_VERSION = 2;
+/** Au-delà, la sauvegarde serait trop lourde pour la plupart des navigateurs (environ 23 Ko par photo). */
+export const MAX_PHOTOS = 5000;
+
+/** @typedef {{id:number,t:number,tz?:number,lat:number,lon:number,est:boolean,cap:string,place:string,src:string,noDate?:boolean}} SavedPhoto
  * @typedef {{version:number,title:string,names:Record<string,string>,photos:SavedPhoto[]}} SavedTrip
- * @typedef {{get(k:string):Promise<any>,set(k:string,v:any):Promise<void>,del(k:string):Promise<void>}} Backend */
+ * @typedef {import('./idb.js').Backend} Backend */
 
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 const isStr = (v, max) => typeof v === 'string' && v.length <= max;
@@ -28,7 +29,7 @@ export function isValidPhoto(p) {
     && isNum(p.lat) && p.lat >= -90 && p.lat <= 90 && isNum(p.lon) && p.lon >= -540 && p.lon <= 540
     && typeof p.est === 'boolean' && isStr(p.cap, 500) && isStr(p.place, 200)
     && typeof p.src === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(p.src)
-    && (p.noDate === undefined || typeof p.noDate === 'boolean');
+    && (p.noDate === undefined || typeof p.noDate === 'boolean') && (p.tz === undefined || validTz(p.tz));
 }
 
 /** @param {any} d @returns {d is SavedTrip} */
@@ -53,15 +54,15 @@ export function migrate(d) {
   }
   const v = out.version;
   if (!Number.isInteger(v) || v < 1 || v > SAVE_VERSION) return null;
-  // Étapes futures, à chaîner ici :
-  // if (out.version === 1) { out = v1ToV2(out); }
+  // une étape par version, dans l'ordre
+  if (out.version === 1) out = { ...out, version: 2 }; // v1 -> v2 : le fuseau est facultatif, rien à convertir
   return out;
 }
 
 /** Données brutes -> voyage valide, ou null. @param {any} raw */
 export function parse(raw) { const d = migrate(raw); return isValidTrip(d) ? d : null; }
 
-/** Photos et noms de l'appli -> voyage à sauvegarder.
+/** Photos et noms de l'appli -> voyage à sauvegarder (photos rangées par numéro, comme dans la base).
  * @param {string} title @param {Record<string,string>} names @param {any[]} photos @returns {SavedTrip} */
 export function serialize(title, names, photos) {
   const keep = new Set(photos.map(p => String(p.id)));
@@ -74,8 +75,9 @@ export function serialize(title, names, photos) {
       /** @type {SavedPhoto} */
       const o = { id: p.id, t: p.t, lat: p.lat, lon: p.lon, est: !!p.est, cap: p.cap || '', place: p.place || '', src: p.src };
       if (p.noDate) o.noDate = true;
+      if (validTz(p.tz)) o.tz = p.tz;
       return o;
-    }),
+    }).sort((a, b) => a.id - b.id),
   };
 }
 
@@ -84,17 +86,22 @@ export function serialize(title, names, photos) {
 export async function loadTrip(db) {
   if (!db) return null;
   let raw;
-  try { raw = await db.get(KEY); } catch { return null; }
+  try { raw = await (db.readTrip ? db.readTrip() : db.get(KEY)); } catch { return null; }
   if (raw === undefined || raw === null) return null;
-  const d = parse(raw);
+  const d = raw.incomplet ? null : parse(raw);
   if (d) return d;
-  try { await db.set(KEY + '.abimee', raw); await db.del(KEY); } catch { /* stockage plein ou bloqué */ }
+  try { await db.set(KEY + '.abimee', raw); await wipe(db); } catch { /* stockage plein ou bloqué : rien n'est effacé */ }
   return null;
 }
 
-/** Résultat d'une sauvegarde : ok, voyage invalide (jamais écrit), stockage indisponible (navigation privée…),
+/** @param {Backend} db */
+const wipe = db => db.clearTrip ? db.clearTrip() : db.del(KEY);
+/** @param {Backend} db @param {SavedTrip} d */
+const write = (db, d) => db.writeTrip ? db.writeTrip(d) : db.set(KEY, d);
+
+/** Résultat d'une sauvegarde : ok, trop de photos, voyage invalide (jamais écrit), stockage indisponible (navigation privée…),
  * plein (quota dépassé), ou autre erreur.
- * @typedef {'ok'|'invalide'|'indisponible'|'plein'|'erreur'} SaveStatus */
+ * @typedef {'ok'|'trop'|'invalide'|'indisponible'|'plein'|'erreur'} SaveStatus */
 
 /** Erreur de quota, quel que soit le navigateur. @param {any} e */
 export function isQuotaError(e) {
@@ -105,11 +112,12 @@ export function isQuotaError(e) {
 /** Sauvegarde et dit pourquoi elle échoue. Si le stockage est plein, on libère le voyage abîmé mis de côté et on réessaie une fois.
  * @param {Backend|null} db @param {SavedTrip} d @returns {Promise<SaveStatus>} */
 export async function saveTripStatus(db, d) {
+  if (d && Array.isArray(d.photos) && d.photos.length > MAX_PHOTOS) return 'trop';
   if (!isValidTrip(d)) return 'invalide';
   if (!db) return 'indisponible';
-  try { await db.set(KEY, d); return 'ok'; } catch (e) {
+  try { await write(db, d); return 'ok'; } catch (e) {
     if (!isQuotaError(e)) return 'erreur';
-    try { await db.del(KEY + '.abimee'); await db.set(KEY, d); return 'ok'; } catch { return 'plein'; }
+    try { await db.del(KEY + '.abimee'); await write(db, d); return 'ok'; } catch { return 'plein'; }
   }
 }
 
@@ -117,60 +125,12 @@ export async function saveTripStatus(db, d) {
 export async function saveTrip(db, d) { return (await saveTripStatus(db, d)) === 'ok'; }
 
 /** @param {Backend|null} db */
-export async function clearTrip(db) { if (!db) return; try { await db.del(KEY); } catch { /* bloqué */ } }
-
-/** Version du schéma IndexedDB (magasins d'objets), distincte de SAVE_VERSION (format du voyage). */
-export const DB_VERSION = 1;
-/** Au-delà, l'ouverture est abandonnée : certains Safari laissent indexedDB.open sans réponse. */
-export const OPEN_TIMEOUT_MS = 4000;
-
-/** La fabrique IndexedDB du navigateur ; y accéder peut lever une erreur (iframe isolée, cookies bloqués). */
-export function defaultFactory() { try { return globalThis.indexedDB || null; } catch { return null; } }
-
-/** IndexedDB du navigateur, ou null s'il est indisponible (navigation privée stricte, fichier local…).
- * Une ouverture ratée n'est pas gardée en mémoire : l'appel suivant réessaie.
- * @param {IDBFactory|null} [factory] @param {number} [timeoutMs] @returns {Backend|null} */
-export function idbBackend(factory = defaultFactory(), timeoutMs = OPEN_TIMEOUT_MS) {
-  if (!factory) return null;
-  const f = factory;
-  /** @type {Promise<IDBDatabase>|null} */
-  let opening = null;
-  const open = () => opening ??= new Promise((res, rej) => {
-    const timer = setTimeout(() => rej(new Error('ouverture trop longue')), timeoutMs);
-    const done = (/** @type {() => void} */ fn) => { clearTimeout(timer); fn(); };
-    /** @type {IDBOpenDBRequest} */
-    let r;
-    try { r = f.open(DB_NAME, DB_VERSION); } catch (e) { done(() => rej(e)); return; }
-    r.onupgradeneeded = () => {
-      // une étape par version de schéma ; v1 : un magasin clé -> valeur
-      if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
-    };
-    r.onsuccess = () => done(() => {
-      const db = r.result;
-      // un autre onglet passe à un schéma plus récent : on se retire proprement
-      db.onversionchange = () => { db.close(); opening = null; };
-      res(db);
-    });
-    r.onerror = () => done(() => rej(r.error));
-    r.onblocked = () => done(() => rej(new Error('bloqué')));
-  }).catch(e => { opening = null; throw e; });
-  /** @param {'readonly'|'readwrite'} mode @param {(s:IDBObjectStore)=>IDBRequest} fn */
-  const run = (mode, fn) => open().then(db => new Promise((res, rej) => {
-    const tx = db.transaction(STORE, mode), q = fn(tx.objectStore(STORE));
-    tx.oncomplete = () => res(q.result); tx.onerror = () => rej(tx.error || q.error); tx.onabort = () => rej(tx.error || q.error || new Error('annulé'));
-  }));
-  /** @type {Backend} */
-  const b = {
-    get: k => run('readonly', s => s.get(k)),
-    set: (k, v) => run('readwrite', s => s.put(v, k)).then(() => {}),
-    del: k => run('readwrite', s => s.delete(k)).then(() => {}),
-  };
-  return b;
-}
+export async function clearTrip(db) { if (!db) return; try { await wipe(db); } catch { /* bloqué */ } }
 
 /** Message pour l'utilisateur quand le voyage n'a pas pu être gardé ('' si rien à dire).
  * @param {SaveStatus} status @returns {string} */
 export function saveMessage(status) {
+  if (status === 'trop') return 'Ce voyage compte plus de ' + MAX_PHOTOS + ' photos : il ne peut pas être gardé dans le navigateur. Téléchargez le carnet pour le conserver.';
   if (status === 'plein') return 'Le stockage de ce navigateur est plein : votre voyage n\'a pas pu être gardé pour la prochaine visite. Téléchargez le carnet pour le conserver.';
   if (status === 'indisponible') return 'Ce navigateur ne permet pas de garder le voyage (navigation privée ?) : téléchargez le carnet pour le conserver.';
   if (status === 'erreur') return 'Votre voyage n\'a pas pu être gardé pour la prochaine visite. Téléchargez le carnet pour le conserver.';

@@ -1,6 +1,6 @@
 // Robustesse et performance dans un vrai navigateur (Chromium) :
 // vitesse de lecture, onglet caché, aucun dessin à l'arrêt, dates EXIF bizarres, navigation privée,
-// stockage plein, 300 photos (réduction, mémoire, fluidité, rechargement), carnet ouvert sur téléphone.
+// stockage plein, base de la version 1.2 (montée de schéma), 300 photos (réduction, mémoire, fluidité, rechargement), carnet ouvert sur téléphone.
 // Lancer : npm run robustesse
 import { chromium, devices } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -126,6 +126,28 @@ try {
     check(/plein/.test(await page.locator('#keepwarn').innerText()), 'stockage plein : message, avec le conseil de télécharger le carnet');
     check(await page.evaluate(() => __kv.etat.stops.length) === 3, 'stockage plein : le voyage reste affiché');
     check(errs.length === 0, `stockage plein sans erreur (${errs.slice(0, 2).join(' | ')})`);
+    await ctx.close();
+  }
+
+  // ---------- base gardée par la version 1.2 (schéma v1) : montée en v2 dans le vrai navigateur ----------
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await ctx.newPage(); const errs = watch(page);
+    // page du même site, sans l'appli : on y écrit la base comme la version 1.2
+    await page.goto(URL.replace('index.html', 'README.md'));
+    const files = await makePhotos(page, trip3);
+    const photos = files.map((f, i) => ({ id: i + 1, t: new Date(2026, 5, 1 + 2 * i, 10).getTime(), lat: trip3[i].lat, lon: trip3[i].lon, est: false, cap: '', place: '', src: 'data:image/jpeg;base64,' + f.buffer.toString('base64') }));
+    await page.evaluate(photos => new Promise((res, rej) => {
+      const r = indexedDB.open('kevoyage', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('voyage');
+      r.onsuccess = () => { const tx = r.result.transaction('voyage', 'readwrite'); tx.objectStore('voyage').put({ version: 1, title: 'Gardé par la 1.2', names: { 2: 'Porto, enfin' }, photos }, 'courant'); tx.oncomplete = () => { r.result.close(); res(); }; tx.onerror = () => rej(tx.error); };
+    }), photos);
+    await page.goto(URL); await ready(page);
+    const r = await page.evaluate(() => ({ demo: __kv.etat.isDemo, n: __kv.etat.photos.length, title: document.getElementById('title').value, names: __kv.etat.stops.map(s => s.name) }));
+    check(!r.demo && r.n === 3 && r.title === 'Gardé par la 1.2' && r.names[1] === 'Porto, enfin', `base de la version 1.2 : voyage retrouvé après la montée de schéma (${r.names.join(', ')})`);
+    const db = await page.evaluate(() => new Promise(res => { const o = indexedDB.open('kevoyage'); o.onsuccess = () => { const d = o.result, tx = d.transaction(['voyage', 'photos']); const h = tx.objectStore('voyage').get('courant'), k = tx.objectStore('photos').getAllKeys(); tx.oncomplete = () => { d.close(); res({ v: d.version, head: Object.keys(h.result), keys: k.result }); }; }; }));
+    check(db.v === 2 && !db.head.includes('photos') && db.keys.length === 1, `schéma ${db.v} : en-tête léger et ${db.keys.length} paquet de photos`);
+    check(errs.length === 0, `montée de schéma sans erreur (${errs.slice(0, 2).join(' | ')})`);
     await ctx.close();
   }
 

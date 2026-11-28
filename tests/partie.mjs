@@ -108,23 +108,23 @@ try {
   await viewer.close();
 
   // ancien carnet (exporté avant 1.1.0, sans numéro de version)
-  const old = html.replace('"trip":{"version":1,', '"trip":{');
+  const old = html.replace(/"trip":\{"version":\d+,/, '"trip":{');
   check(old !== html, 'carnet ancien format fabriqué');
   writeFileSync(`${OUT}/carnet-ancien.html`, old);
   const v2 = await ctx.newPage(); await v2.goto('file://' + process.cwd() + `/${OUT}/carnet-ancien.html`); await ready(v2);
   check((await st(v2)).stops.length === 3, 'un carnet de l\'ancien format s\'ouvre');
   await v2.close();
-  const broken = html.replace('"trip":{"version":1,', '"trip":{"version":99,');
+  const broken = html.replace(/"trip":\{"version":\d+,/, '"trip":{"version":99,');
   writeFileSync(`${OUT}/carnet-futur.html`, broken);
   const v3 = await ctx.newPage(); await v3.goto('file://' + process.cwd() + `/${OUT}/carnet-futur.html`); await ready(v3);
   check(/impossible de l'ouvrir/.test(await v3.locator('#warn').innerText()), 'carnet d\'une version future : message clair, pas de plantage');
   await v3.close();
 
   // voyage sauvegardé abîmé
-  await page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.open('kevoyage', 1); r.onsuccess = () => { const tx = r.result.transaction('voyage', 'readwrite'); tx.objectStore('voyage').put({ version: 1, title: 'x', names: {}, photos: [{ id: 1 }] }, 'courant'); tx.oncomplete = () => { r.result.close(); res(); }; tx.onerror = rej; }; }));
+  await page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.open('kevoyage'); r.onsuccess = () => { const tx = r.result.transaction('voyage', 'readwrite'); tx.objectStore('voyage').put({ version: 1, title: 'x', names: {}, photos: [{ id: 1 }] }, 'courant'); tx.oncomplete = () => { r.result.close(); res(); }; tx.onerror = rej; }; }));
   await page.reload(); await ready(page);
   s = await st(page);
-  const aside = await page.evaluate(() => new Promise(res => { const r = indexedDB.open('kevoyage', 1); r.onsuccess = () => { const q = r.result.transaction('voyage').objectStore('voyage').get('courant.abimee'); q.onsuccess = () => { r.result.close(); res(q.result); }; }; }));
+  const aside = await page.evaluate(() => new Promise(res => { const r = indexedDB.open('kevoyage'); r.onsuccess = () => { const q = r.result.transaction('voyage').objectStore('voyage').get('courant.abimee'); q.onsuccess = () => { r.result.close(); res(q.result); }; }; }));
   check(s.demo && aside && aside.title === 'x', 'voyage abîmé mis de côté, retour à la démo');
 
   // photos sans aucun lieu

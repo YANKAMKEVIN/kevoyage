@@ -2,7 +2,8 @@
 /** Garde le voyage en cours dans le navigateur (jamais la démo, jamais dans un carnet téléchargé). */
 import { $, VIEWER } from './dom.js';
 import { etat } from './state.js';
-import { idbBackend, serialize, saveTripStatus, saveMessage, loadTrip } from './store.js';
+import { serialize, saveTripStatus, saveMessage, loadTrip } from './store.js';
+import { idbBackend } from './idb.js';
 
 export const db = VIEWER ? null : idbBackend();
 /** @type {any} */

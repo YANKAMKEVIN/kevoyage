@@ -3,12 +3,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
-import { KEY, DB_NAME, STORE, DB_VERSION, SAVE_VERSION, idbBackend, defaultFactory, loadTrip, saveTrip, saveTripStatus, saveMessage, isQuotaError, serialize, clearTrip } from '../../src/store.js';
+import { KEY, DB_NAME, STORE, DB_VERSION, idbBackend, defaultFactory } from '../../src/idb.js';
+import { SAVE_VERSION, loadTrip, saveTrip, saveTripStatus, saveMessage, isQuotaError, serialize, clearTrip } from '../../src/store.js';
 import { japan, memDb } from './helpers.mjs';
 
 const sample = (title = 'Japon') => serialize(title, {}, japan());
-/** Écrit directement dans la base, comme une ancienne version de l'appli. */
-const rawPut = (factory, key, value, version = DB_VERSION) => new Promise((res, rej) => {
+/** Écrit directement dans la base, comme la version 1.2 de l'appli (schéma v1 : un seul magasin, voyage entier). */
+const rawPut = (factory, key, value, version = 1) => new Promise((res, rej) => {
   const r = factory.open(DB_NAME, version);
   r.onupgradeneeded = () => r.result.createObjectStore(STORE);
   r.onsuccess = () => { const tx = r.result.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put(value, key); tx.oncomplete = () => { r.result.close(); res(); }; tx.onerror = () => rej(tx.error); };
