@@ -2,13 +2,14 @@
 /** Point d'entrée : couleurs, redimensionnement, démarrage. */
 import { $, KEV, VERSION } from './dom.js';
 import { parse } from './store.js';
-import { keepNow, restore } from './keep.js';
+import { keepNow, lastWrite, restore } from './keep.js';
 import { cv, draw, loadGeo, probe, readColors, resize } from './map.js';
 import { etat } from './state.js';
 import { build } from './trip.js';
 import { panel } from './hud.js';
-import { loop, setPlay } from './playback.js';
-import { finishPhoto } from './photos.js';
+import { setPlay, startLoop } from './playback.js';
+import { ingest } from './photos.js';
+import { showThumbs } from './thumbs.js';
 import { loadDemo, demoArt } from './demo.js';
 import './exporter.js';
 
@@ -22,8 +23,8 @@ ro.observe(cv);
 /** Ouvre un voyage sauvegardé ou un carnet. @param {import('./store.js').SavedTrip} trip */
 async function openTrip(trip) {
   etat.names = { ...trip.names }; etat.isDemo = false;
-  etat.photos = await Promise.all(trip.photos.map(p => { etat.pid = Math.max(etat.pid, p.id); return finishPhoto({ ...p }); }));
-  $('title').value = trip.title; $('title').dataset.auto = ''; build(); panel();
+  etat.photos = trip.photos.map(p => { etat.pid = Math.max(etat.pid, p.id); return { ...p }; });
+  $('title').value = trip.title; $('title').dataset.auto = ''; build(); await showThumbs(); panel();
 }
 
 $('ver').textContent = 'v' + VERSION;
@@ -41,9 +42,9 @@ $('ver').textContent = 'v' + VERSION;
   resize();
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setPlay(true);
   else { const o = etat.seq.find(q => q.kind === 'stay' && q.s.i === Math.min(2, etat.stops.length - 1)); if (o) etat.t = o.t0 + 0.1; }
-  requestAnimationFrame(t0 => { etat.last = t0; loop(t0); });
+  startLoop(); draw();
   etat.ready = true;
 })();
 
 /** Accès pour les tests de bout en bout. */
-Object.assign(window, { __kv: { etat, keep: () => keepNow(), restore, get demoArt() { return demoArt; } } });
+Object.assign(window, { __kv: { etat, ingest, keep: () => keepNow(), keepStatus: () => lastWrite, restore, get demoArt() { return demoArt; } } });

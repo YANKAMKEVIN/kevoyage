@@ -1,12 +1,12 @@
 // @ts-check
 /** Voyage de démonstration au Japon, photos peintes sur canvas. */
 import { $ } from './dom.js';
-import { DAY } from './fmt.js';
+import { DAY } from './temps.js';
 import { etat } from './state.js';
 import { build } from './trip.js';
 import { panel } from './hud.js';
 import { setPlay } from './playback.js';
-import { finishPhoto } from './photos.js';
+import { showThumbs } from './thumbs.js';
 
 /* ---------- demo ---------- */
 function rnd(seed) { let s = seed % 2147483647 || 7; return () => (s = s * 16807 % 2147483647) / 2147483647; }
@@ -139,9 +139,9 @@ export async function loadDemo() {
   etat.photos = await Promise.all(DEMO.map((d, i) => {
     const [hh, mm] = d[1].split(':').map(Number);
     const tm = base + d[0] * DAY + (hh * 60 + mm) * 6e4;
-    return (async () => finishPhoto({id: ++etat.pid, t: tm, lat: d[2], lon: d[3], est: false, cap: d[5], place: d[6], src: await painted(i, () => paint(d[4], hh, i + 3))}))();
+    return (async () => ({id: ++etat.pid, t: tm, lat: d[2], lon: d[3], est: false, cap: d[5], place: d[6], src: await painted(i, () => paint(d[4], hh, i + 3))}))();
   }));
   etat.names = {}; etat.isDemo = true; $('title').value = 'Japon, mai 2026'; $('title').dataset.auto = ''; $('warn').hidden = true;
-  build(); panel(); etat.t = 0;
+  build(); await showThumbs(); panel(); etat.t = 0;
 }
 $('demo').addEventListener('click', async () => { await loadDemo(); setPlay(true); });

@@ -11,6 +11,9 @@ const read = async f => readFileSync(new URL(f, src), 'utf8');
 
 test('les import sont lus, y compris sur plusieurs lignes et sans nom', () => {
   assert.deepEqual(importsOf("import { a,\n b } from './x.js';\nimport './y.js';\nconst s = \"import z from './no.js'\";\n"), ['./x.js', './y.js']);
+  // import sans nom suivi d'un import nommé : le premier n'avale pas le second (bug corrigé en 1.3.0)
+  assert.deepEqual(importsOf("import './a.js';\nimport { b } from './b.js';\n"), ['./a.js', './b.js']);
+  assert.equal(strip("import './a.js';\nimport { b } from './b.js';\nconst c = 1;\n"), 'const c = 1;\n');
   assert.equal(strip("// @ts-check\nimport { a } from './x.js';\nexport const b = 1;\nexport async function f() {}\n"), 'const b = 1;\nasync function f() {}\n');
 });
 

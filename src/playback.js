@@ -15,12 +15,28 @@ export function setPlay(on) {
   $('play').setAttribute('aria-label', etat.playing ? 'Pause' : 'Lecture');
   etat.last = performance.now();
 }
+/** Image suivante : n'avance et ne redessine que pendant la lecture (à l'arrêt, chaque action redessine elle-même),
+ * et s'arrête complètement quand l'onglet est caché. @param {number} now */
 export function loop(now) {
+  etat.raf = 0;
+  if (document.hidden) return;
   const dt = Math.min(0.1, (now - etat.last) / 1000); etat.last = now;
-  if (etat.playing) { etat.t += dt * etat.speed; if (etat.t >= etat.T) { etat.t = etat.T; setPlay(false); } }
-  draw();
-  requestAnimationFrame(loop);
+  if (etat.playing) {
+    etat.t += dt * etat.speed; if (etat.t >= etat.T) { etat.t = etat.T; setPlay(false); }
+    draw(); etat.frames++;
+  }
+  etat.raf = requestAnimationFrame(loop);
 }
+/** Lance la boucle si elle ne tourne pas. */
+export function startLoop() {
+  if (etat.raf || document.hidden) return;
+  etat.last = performance.now();
+  etat.raf = requestAnimationFrame(loop);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (etat.raf) cancelAnimationFrame(etat.raf); etat.raf = 0; }
+  else { startLoop(); draw(); }
+});
 $('play').addEventListener('click', () => setPlay(!etat.playing));
 $('speed').addEventListener('click', () => { etat.speed = etat.speed === 1 ? 2 : etat.speed === 2 ? 4 : 1; $('speed').textContent = '×' + etat.speed; });
 $('scrub').addEventListener('input', e => { etat.t = /** @type {any} */ (e.target).value / 1000 * etat.T; etat.hash = null; draw(); });

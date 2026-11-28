@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { KEY, SAVE_VERSION, MAX_PHOTOS, isValidTrip, migrate, parse, serialize, loadTrip, saveTrip, clearTrip } from '../../src/store.js';
+import { KEY } from '../../src/idb.js';
+import { SAVE_VERSION, MAX_PHOTOS, isValidTrip, migrate, parse, serialize, loadTrip, saveTrip, clearTrip } from '../../src/store.js';
 import { japan, memDb, IMG } from './helpers.mjs';
 
 const sample = () => (() => { const ph = japan(); return serialize('Japon, mai 2026', { [ph[1].id]: 'Shibuya', 999: 'orphelin', [ph[2].id]: '' }, ph); })();
@@ -49,7 +50,7 @@ test('voyage d\'une version plus récente : refusé', () => {
 test('carnet exporté avant 1.1.0 (sans version) : repris', () => {
   const old = { title: 'Lisbonne', names: {}, photos: [{ id: 1, t: 1.7e12, lat: 38.7, lon: -9.1, est: false, src: IMG }] };
   const d = parse(old);
-  assert.ok(d); assert.equal(d.version, 1); assert.equal(d.photos[0].cap, ''); assert.equal(d.title, 'Lisbonne');
+  assert.ok(d); assert.equal(d.version, SAVE_VERSION); assert.equal(d.photos[0].cap, ''); assert.equal(d.title, 'Lisbonne');
 });
 
 test('on n\'écrit jamais un voyage invalide ; taille bornée', async () => {

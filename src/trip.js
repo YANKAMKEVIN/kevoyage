@@ -1,18 +1,25 @@
 // @ts-check
 /** Le voyage sans DOM : étapes, trajets, séquence animée, résumé, titre automatique. Testé sous Node. */
-import { DAY, fmtMonth, nf } from './fmt.js';
+import { fmtMonth, nf } from './fmt.js';
 import { etat } from './state.js';
 import { km, nearest, proj } from './geo.js';
+import { dayIndex, inferZones, wall, wallDay } from './temps.js';
+
+/** Ordre du voyage : instant de prise de vue, puis ordre d'import. */
+const byTime = (a, b) => a.t - b.t || a.id - b.id;
 
 export function build() {
-  etat.photos.sort((a, b) => a.t - b.t);
+  etat.photos.sort(byTime);
   etat.stops = [];
+  etat.day0 = Infinity; etat.day1 = -Infinity;
   for (const p of etat.photos) {
-    const s = etat.stops[etat.stops.length - 1];
+    const s = etat.stops[etat.stops.length - 1], w = wall(p), d = wallDay(w);
+    if (d < etat.day0) etat.day0 = d;
+    if (d > etat.day1) etat.day1 = d;
     if (s && km(s, p) < 15) {
-      s.photos.push(p); s.t1 = p.t;
+      s.photos.push(p); s.t1 = p.t; s.w1 = w;
       if (!p.est) { s.n++; s.lat += (p.lat - s.lat) / s.n; s.lon += (p.lon - s.lon) / s.n; }
-    } else etat.stops.push(/** @type {any} */ ({lat: p.lat, lon: p.lon, n: p.est ? 0 : 1, t0: p.t, t1: p.t, photos: [p]}));
+    } else etat.stops.push(/** @type {any} */ ({lat: p.lat, lon: p.lon, n: p.est ? 0 : 1, t0: p.t, t1: p.t, w0: w, w1: w, photos: [p]}));
   }
   let px = null;
   etat.stops.forEach((s, i) => {
@@ -99,23 +106,25 @@ export function legPoint(L, f) {
   const a = L.pts[j - 1], b = L.pts[j], seg = (L.cum[j] - L.cum[j - 1]) || 1, g = Math.max(0, Math.min(1, (target - L.cum[j - 1]) / seg));
   return [a[0] + (b[0] - a[0]) * g, a[1] + (b[1] - a[1]) * g, j];
 }
-export function dayNo(tm) { return Math.floor((midnight(tm) - midnight(etat.stops[0].t0)) / DAY) + 1; }
-export function midnight(tm) { const d = new Date(tm); d.setHours(0, 0, 0, 0); return d.getTime(); }
+/** Numéro du jour du voyage (« Jour 3 ») d'une photo, dans le fuseau de sa prise de vue.
+ * Un nombre est lu comme un instant dans le fuseau du navigateur. @param {number|{t:number,tz?:number}} x */
+export function dayNo(x) { return dayIndex(x) - etat.day0 + 1; }
 export function summary() {
   const kmT = etat.legs.reduce((a, L) => a + L.km, 0);
   const isos = [...new Set(etat.stops.map(s => s.iso).filter(Boolean))];
-  const days = etat.stops.length ? Math.floor((midnight(etat.stops[etat.stops.length - 1].t1) - midnight(etat.stops[0].t0)) / DAY) + 1 : 0;
+  const days = etat.stops.length ? etat.day1 - etat.day0 + 1 : 0;
   return {km: nf.format(Math.round(kmT)), isos, days};
 }
 export function autoTitle() {
   const isos = [];
   for (const s of etat.stops) if (s.iso && !isos.includes(s.iso)) isos.push(s.iso);
   const main = isos.length > 1 && etat.stops[0].iso === isos[0] && etat.stops.filter(s => s.iso === isos[0]).length === 1 ? isos.slice(1) : isos;
-  const m = etat.stops.length ? fmtMonth.format(etat.stops[0].t0) : '';
+  const m = etat.stops.length ? fmtMonth.format(etat.stops[0].w0) : '';
   return (main.slice(0, 3).map(etat.regionName).join(', ') || 'Mon voyage') + ', ' + m;
 }
 export function estimate() {
-  etat.photos.sort((a, b) => a.t - b.t);
+  inferZones(etat.photos, km);
+  etat.photos.sort(byTime);
   const L = etat.photos.filter(p => !p.est);
   for (const p of etat.photos) {
     if (!p.est) continue;
